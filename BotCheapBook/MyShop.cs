@@ -5,17 +5,17 @@ using System.Net.Http;
 
 namespace BotCheapBook
 {
-    class MyShop
+    class MyShop : BookShop
     {
-        public static Tuple<int, string> ByMyShop(string name)
+        public override Tuple<int, string> GetBestBook(string name)
         {
-            var priceAndBook = GetPrice(GetBookName(name));
+            var priceAndBook = FindBook(GetBookName(name));
             if (priceAndBook == null) return null;
             string urlBook = "https://my-shop.ru/shop/product/" + priceAndBook.Item2 + ".html";
             return new Tuple<int, string>(priceAndBook.Item1, urlBook);
         }
 
-        private static Tuple<int, string> GetPrice(string name)
+        protected override Tuple<int, string> FindBook(string name)
         {
             try
             {
@@ -38,7 +38,6 @@ namespace BotCheapBook
                             booksID.Add(thisBookID);
                     }
                     findPrice = findPrice.Substring(1) + data[i + 8];
-
                 }
                 var list = new List<int>();
                 foreach (var price in prices)
@@ -55,38 +54,19 @@ namespace BotCheapBook
             catch { return null; }
         }
 
-        private static string GetBookId(int i, string data)
+        private string GetBookId(int i, string data)
         {
-            string bookID = "";
-            while (data[i] != '"')
-            {
-                bookID += data[i];
-                i++;
-            }
-            return bookID.Replace(" ", "");
+            return base.GetData(i, data, '"');
         }
 
-        private static string GetPrice(int i, string data)
+        private string GetPrice(int i, string data)
         {
-            string price = "";
-            while (data[i] != '"')
-            {
-                price += data[i];
-                i++;
-            }
-            return price.Replace(" ", "");
+            return base.GetData(i, data, '"');
         }
 
-        private static string GetBookName(string name)
+        private string GetBookName(string name)
         {
-            if (name == "") return "";
-            var array = name.Split();
-            string result = array[0];
-            for (var i = 1; i < array.Length; i++)
-            {
-                result += "%20" + array[i];
-            }
-            return result;
+            return base.GetBookName(name, "%20");
         }
     }
 }

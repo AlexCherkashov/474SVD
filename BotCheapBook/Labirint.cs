@@ -5,17 +5,17 @@ using System.Net.Http;
 
 namespace BotCheapBook
 {
-    class Labirint
+    class Labirint : BookShop
     {
-        public static Tuple<int, string> ByLabirint(string name)
+        public override Tuple<int, string> GetBestBook(string name)
         {
-            var priceAndBook = GetPrice(GetBookName(name));
+            var priceAndBook = FindBook(GetBookName(name));
             if (priceAndBook == null) return null;
             string urlBook = "https://www.labirint.ru/books/" + priceAndBook.Item2 + "/";
             return new Tuple<int, string>(priceAndBook.Item1, urlBook);
         }
 
-        private static Tuple<int, string> GetPrice(string name)
+        protected override Tuple<int, string> FindBook(string name)
         {
             try
             {
@@ -51,27 +51,14 @@ namespace BotCheapBook
             catch { return null; }
         }
 
-        private static string GetData(int i, string data)
+        private string GetData(int i, string data)
         {
-            string price = "";
-            while (data[i] != '\"')
-            {
-                price += data[i];
-                i++;
-            }
-            return price;
+            return base.GetData(i, data, '"');
         }
 
-        private static string GetBookName(string name)
+        private string GetBookName(string name)
         {
-            if (name == "") return "";
-            var array = name.Split();
-            string result = array[0];
-            for (var i = 1; i < array.Length; i++)
-            {
-                result += "%20" + array[i];
-            }
-            return result;
+            return base.GetBookName(name, "%20");
         }
     }
 }

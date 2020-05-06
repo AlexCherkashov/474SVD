@@ -10,18 +10,26 @@ using VkNet.Utils;
 using Newtonsoft.Json.Linq;
 using System.Threading;
 using System.Diagnostics;
+using System.Data;
+using System.Data.SqlClient;
 using VkNet.Model.Keyboard;
 using VkNet.Enums.SafetyEnums;
 using Newtonsoft.Json;
+using System.IO;
 
 namespace BotCheapBook
 {
+
     class Program
     {
         private static Random random = new Random();
+        private static SqlConnection sql;
 
         static void Main()
         {
+            string connectionString = File.ReadAllText("connectionString.txt");
+            sql = new SqlConnection(connectionString);
+            sql.Open();
 
             VkApi vk = new VkApi();
             var webClient = new WebClient() { Encoding = Encoding.UTF8 };
@@ -29,51 +37,23 @@ namespace BotCheapBook
             vk.Authorize(new ApiAuthParams
             {
                 ApplicationId = 7443996,
-                Login = "XXX",
-                Password = "XXX",
+                Login = File.ReadAllText("login.txt"),
+                Password = File.ReadAllText("password.txt"),
                 Settings = Settings.All | Settings.All
             });
             Console.WriteLine("Авторизация прошла");
+            var Commands = new string[8] { "Лабиринт", "book24", "my-shop", "Дом Книги",
+                                            "Республика", "Добавить", "Удалить", "Начать" };
 
-            var BooksStores = new string[6] { "Буквоед", "book24", "my-shop", "Дом Книги", "Республика", "Лабиринт" };
+            IKeyboard keyboardSites = new KeyboardSites();
+            IKeyboard keyboardMenu = new KeyboardMenu();
+            IKeyboard keyboardBestSellers = new KeyboardBestSellers();
+            IKeyboard keyboardMyList = new KeyboardMyList();
 
-            var buttons = new List<MessageKeyboardButton>();
-
-            for (var i = 0; i < 6; i++)
-            {
-                buttons.Add(new MessageKeyboardButton
-                {
-                    Action = new MessageKeyboardButtonAction
-                    {
-                        Type = KeyboardButtonActionType.Text,
-                        Label = BooksStores[i]
-                    },
-                    Color = KeyboardButtonColor.Positive
-                });
-            }
-
-
-            var keyboard = new MessageKeyboard
-            {
-                OneTime = false,
-                Buttons = new List<List<MessageKeyboardButton>>
-            {
-                new List<MessageKeyboardButton>
-                {
-                    buttons[0], buttons[1]
-                },
-                new List<MessageKeyboardButton>
-                {
-                    buttons[2], buttons[3]
-                },
-                new List<MessageKeyboardButton>
-                {
-                    buttons[4], buttons[5]
-                }
-            }
-            };
-
-            string jsonKeyBoard = JsonConvert.SerializeObject(keyboard);
+            string sites = keyboardSites.GetJsonKeyboard();
+            string menu = keyboardMenu.GetJsonKeyboard();
+            string bestSellers = keyboardBestSellers.GetJsonKeyboard();
+            string myList = keyboardMyList.GetJsonKeyboard();
 
             var param = new VkParameters() { };
             param.Add("group_id", "194889296");
@@ -85,7 +65,6 @@ namespace BotCheapBook
 
             while (true)
             {
-
                 string server = responseLongPoll.response.server.ToString();
                 string key = responseLongPoll.response.key.ToString();
                 string ts = responseLongPoll.response.ts.ToString();
@@ -93,67 +72,54 @@ namespace BotCheapBook
                         server,
                         key,
                         json != String.Empty ? JObject.Parse(json)["ts"].ToString() : ts);
-
                 json = webClient.DownloadString(url);
 
                 var jsonMsg = json.IndexOf(":[]}") > -1 ? "" : $"{json} \n";
-                var col = JObject.Parse(json)["updates"].ToList();
-
-                foreach (var item in col)
+                JToken item = null;
+                try
                 {
-                    if (item["type"].ToString() == "message_new")
+                    item = JObject.Parse(json)["updates"].ToList().Last();
+                }
+                catch { };
+
+
+                if (item != null && item["type"].ToString() == "message_new")
+                {
+                    string token = "55761d91e497ca618d2e2166ba45b644a8cda06b0984c97efe9db936aba16676664fa47519fc27ea2dfbd";
+                    string urlBotMsg = $"https://api.vk.com/method/messages.send?v=5.103&access_token=" + token + "&user_id=";
+                    var msg = item["object"]["message"]["text"].ToString();
+                    string id = item["object"]["message"]["peer_id"].ToString();
+                    Console.WriteLine($"{msg}");
+
+                    if (Commands.Contains(msg))
+                        continue;
+
+                    switch (msg)
                     {
-                        string token = "55761d91e497ca618d2e2166ba45b644a8cda06b0984c97efe9db936aba16676664fa47519fc27ea2dfbd";
-                        string urlBotMsg = $"https://api.vk.com/method/messages.send?v=5.103&access_token=" + token + "&user_id=";
-                        var msg = item["object"]["message"]["text"].ToString();
-                        string id = item["object"]["message"]["peer_id"].ToString();
-                        Console.WriteLine($"{msg}");
-
-                        switch (msg)
-                        {
-                            case "Буквоед":
-                                SendMessage(webClient, urlBotMsg, id, "https://www.bookvoed.ru/");
-                                continue;
-                            case "book24":
-                                SendMessage(webClient, urlBotMsg, id, "https://book24.ru/");
-                                continue;
-                            case "my-shop":
-                                SendMessage(webClient, urlBotMsg, id, "https://my-shop.ru/");
-                                continue;
-                            case "Дом Книги":
-                                SendMessage(webClient, urlBotMsg, id, "https://www.spbdk.ru/");
-                                continue;
-                            case "Республика":
-                                SendMessage(webClient, urlBotMsg, id, "https://www.respublica.ru/");
-                                continue;
-                            case "Лабиринт":
-                                SendMessage(webClient, urlBotMsg, id, "https://www.labirint.ru/");
-                                continue;
-                        }
-
-                        webClient.DownloadString(
-                            string.Format(urlBotMsg + "{0}&message={1}&random_id={2}&keyboard={3}",
-                            id, "Поиск...",
-                            random.Next(), jsonKeyBoard));
-
-                        var data = GetLink(msg);
-
-                        if (data == null)
-                        {
-                            SendMessage(webClient, urlBotMsg, id, "Прости, я ничего не нашёл");
-                        }
-                        else
-                        {
-                            SendMessage(webClient, urlBotMsg, id, "Эту книгу можно купить за " + data.Item1 + " рублей");
-                            SendMessage(webClient, urlBotMsg, id, data.Item2);
-                        }
-                        Thread.Sleep(200);
+                        case "Сайты":
+                            SendKeyboard(webClient, urlBotMsg, id, "Обновление клавиатуры", sites);
+                            Sites.Run(url, json, webClient, responseLongPoll, menu, urlBotMsg, sql);
+                            continue;
+                        case "Бестселлеры":
+                            SendKeyboard(webClient, urlBotMsg, id, "Обновление клавиатуры", bestSellers);
+                            Bestsellers.Run(url, json, webClient, responseLongPoll, menu, urlBotMsg, sql);
+                            continue;
+                        case "Что хочу прочесть":
+                            SendKeyboard(webClient, urlBotMsg, id, MyList.GetMyList(id, sql), myList);
+                            MyList.Books(url, webClient, responseLongPoll, menu, urlBotMsg, sql);
+                            continue;
+                        case "Назад":
+                            SendKeyboard(webClient, urlBotMsg, id, "Обновление клавиатуры", menu);
+                            continue;
                     }
+
+                    BookSearch.GetBook(webClient, urlBotMsg, id, msg, sql);
+                    Thread.Sleep(200);
                 }
             }
         }
 
-        private static void SendMessage(WebClient webClient, string urlBotMsg, string id, string message)
+        public static void SendMessage(WebClient webClient, string urlBotMsg, string id, string message)
         {
             webClient.DownloadString(
                 string.Format(urlBotMsg + "{0}&message={1}&random_id={2}",
@@ -161,17 +127,33 @@ namespace BotCheapBook
                 random.Next()));
         }
 
-        private static Tuple<int, string> GetLink(string bookName)
+        public static void SendKeyboard(WebClient webClient, string urlBotMsg, string id, string message, string keyboard)
+        {
+            webClient.DownloadString(
+                string.Format(urlBotMsg + "{0}&message={1}&random_id={2}&keyboard={3}",
+                id, message,
+                random.Next(), keyboard));
+        }
+
+        public static Tuple<int, string> GetLink(string bookName)
         {
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
 
-            var array = new List<Tuple<int, string>>();
-            array.Add(Labirint.ByLabirint(bookName));
-            array.Add(Book24.ByBook24(bookName));
-            array.Add(MyShop.ByMyShop(bookName));
-            array.Add(DomKnigi.ByDomKnigi(bookName));
-            array.Add(Respublica.ByMyShop(bookName));
+            BookShop labirint = new Labirint();
+            BookShop book24 = new Book24();
+            BookShop myShop = new MyShop();
+            BookShop domKnigi = new DomKnigi();
+            BookShop respublica = new Respublica();
+
+            var array = new List<Tuple<int, string>>
+            {
+                labirint.GetBestBook(bookName),
+                book24.GetBestBook(bookName),
+                myShop.GetBestBook(bookName),
+                domKnigi.GetBestBook(bookName),
+                respublica.GetBestBook(bookName)
+            };
 
             stopWatch.Stop();
             var time = stopWatch.Elapsed;
@@ -184,7 +166,6 @@ namespace BotCheapBook
                     books.Add(book);
             }
             return books.OrderBy(x => x.Item1).First();
-
         }
     }
 }

@@ -119,3 +119,5 @@ C:\Users\sasha\source\repos\BotCheapBook\BotCheapBook\obj\Debug\BotCheapBook.exe
 C:\Users\sasha\source\repos\BotCheapBook\BotCheapBook\obj\Debug\BotCheapBook.csproj.CoreCompileInputs.cache
 C:\Users\sasha\source\repos\BotCheapBook\BotCheapBook\obj\Debug\BotCheapBook.exe
 C:\Users\sasha\source\repos\BotCheapBook\BotCheapBook\obj\Debug\BotCheapBook.pdb
+C:\Users\sasha\source\repos\BotCheapBook\BotCheapBook\bin\Debug\BookList.mdf
+C:\Users\sasha\source\repos\BotCheapBook\BotCheapBook\bin\Debug\BookList_log.ldf
