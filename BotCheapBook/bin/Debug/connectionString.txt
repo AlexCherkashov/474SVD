@@ -1,1 +1,0 @@
-Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Users\sasha\source\repos\BotCheapBook\BotCheapBook\BookList.mdf;Integrated Security=True
